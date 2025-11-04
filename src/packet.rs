@@ -6,7 +6,7 @@ pub const MAX_REQ_PACKET_SIZE: usize = 1 + 1 + 1 + 255 + 1;
 static mut BUFFER: [u8; MAX_REQ_PACKET_SIZE] = [START_FLAG; MAX_REQ_PACKET_SIZE];
 
 pub struct Packet {
-    pub command: Command,
+    pub op: OpCode,
     pub len: u8,
     pub payload: [u8; 255],
 }
@@ -20,7 +20,7 @@ impl Packet {
         // should even convert and send a single binary packet
         // at a time as well
         unsafe {
-            BUFFER[1] = self.command.opcode();
+            BUFFER[1] = self.op as u8;
 
             if self.len != 0 {
                 BUFFER[2] = self.len;
@@ -42,10 +42,16 @@ impl Packet {
     }
 }
 
-pub enum Command {}
-
-impl Command {
-    pub fn opcode(&self) -> u8 {
-        todo!();
-    }
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OpCode {
+    Stop = 0x25,
+    Reset = 0x40,
+    Scan = 0x20,
+    ExpressScan = 0x82,
+    ForceScan = 0x21,
+    GetInfo = 0x50,
+    GetHealth = 0x52,
+    GetSampleRate = 0x59,
+    GetLidarConf = 0x84,
 }
