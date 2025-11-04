@@ -1,19 +1,15 @@
+use rppal::pwm::Pwm;
+use rppal::uart::{Parity, Uart};
 use std::time::Duration;
 
-use rppal::gpio::Gpio;
-
-pub const MOTOR_CTRL: u8 = 26;
-
 fn main() {
-    let gpio = Gpio::new().expect("Failed to startup GPIO");
-    let mut pin = gpio
-        .get(MOTOR_CTRL)
-        .expect("Failed to assign pin")
-        .into_output();
+    let pwm = Pwm::with_pwmchip(0, 1).expect("Failed to initialize PWM");
+    pwm.set_frequency(1000.0, 0.0).expect("Failed to set freq");
+    pwm.enable().expect("Failed to enable");
 
-    pin.set_high();
+    let mut uart = Uart::new(115_200, Parity::None, 8, 1).expect("Failed to initialize UART");
+    uart.set_read_mode(1, Duration::from_millis(100))
+        .expect("Failed to set read mode");
 
-    std::thread::sleep(Duration::from_secs(5));
-
-    pin.set_low();
+    pwm.set_duty_cycle(1.0).expect("Failed to set duty cycle");
 }
