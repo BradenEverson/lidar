@@ -21,9 +21,21 @@ impl Packet {
         // at a time as well
         unsafe {
             BUFFER[1] = self.command.opcode();
-            BUFFER[2] = self.len;
 
-            BUFFER[3..3 + len].copy_from_slice(&self.payload[0..len]);
+            if self.len != 0 {
+                BUFFER[2] = self.len;
+                BUFFER[3..3 + len].copy_from_slice(&self.payload[0..len]);
+            }
+
+            let mut checksum = 0;
+
+            checksum ^= START_FLAG;
+            checksum ^= self.len;
+            for i in 0..len {
+                checksum ^= self.payload[i];
+            }
+
+            BUFFER[len + 3] = checksum;
 
             &BUFFER[0..len + 4]
         }
