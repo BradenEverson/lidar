@@ -11,6 +11,11 @@ fn main() {
 
 fn read_scan(s: ScanResponse) {
     if s.dist != 0.0 {
-        println!("{:.2}, {:.2}, {}", s.angle, s.dist, s.quality);
+        let (x, y) = polar_to_rectangular(s.dist, s.angle);
+        println!("{:.2}, {:.2}, {}", x, y, s.quality);
     }
+}
+
+fn polar_to_rectangular(r: f32, theta: f32) -> (f32, f32) {
+    (r * theta.cos(), r * theta.sin())
 }
