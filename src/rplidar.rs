@@ -16,12 +16,12 @@ impl Display for LidarError {
 impl Error for LidarError {}
 
 pub struct RpLidar {
-    motor_ctrl: Pwm,
-    com: Uart,
+    pub motor_ctrl: Pwm,
+    pub com: Uart,
 }
 
 impl RpLidar {
-    pub fn init(chip: u8, port: u8) -> Result<Self, LidarError> {
+    pub fn init(_chip: u8, _port: u8) -> Result<Self, LidarError> {
         todo!();
     }
 }

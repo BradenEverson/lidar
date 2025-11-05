@@ -43,3 +43,19 @@ pub enum LidarConf {
 pub enum ConfOpCode {
     ScanModeCount = 0x70,
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::command::Command;
+
+    #[test]
+    fn several_packets() {
+        let c1 = Command::Reset;
+        let c2 = Command::Scan;
+        let c3 = Command::Stop;
+
+        assert_eq!(c1.to_packet(), &[0xA5, 0x40]);
+        assert_eq!(c2.to_packet(), &[0xA5, 0x20]);
+        assert_eq!(c3.to_packet(), &[0xA5, 0x25]);
+    }
+}

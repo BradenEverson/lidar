@@ -13,7 +13,7 @@ fn main() {
 
     pwm.set_duty_cycle(1.0).expect("Failed to set duty cycle");
 
-    uart.write(&[0xA5, 0x50]).expect("Failed to write");
+    uart.write(&[0xA5, 0x20]).expect("Failed to write");
 
     loop {
         let mut buf = [0; 1024];

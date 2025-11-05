@@ -29,24 +29,27 @@ impl Packet {
         // should even convert and send a single binary packet
         // at a time as well
         unsafe {
+            println!("{:?}", self.op);
             BUFFER[1] = self.op as u8;
 
             if self.len != 0 {
                 BUFFER[2] = self.len;
                 BUFFER[3..3 + len].copy_from_slice(&self.payload[0..len]);
+
+                let mut checksum = 0;
+
+                checksum ^= START_FLAG;
+                checksum ^= self.len;
+                for i in 0..len {
+                    checksum ^= self.payload[i];
+                }
+
+                BUFFER[len + 3] = checksum;
+
+                &BUFFER[0..len + 4]
+            } else {
+                &BUFFER[0..2]
             }
-
-            let mut checksum = 0;
-
-            checksum ^= START_FLAG;
-            checksum ^= self.len;
-            for i in 0..len {
-                checksum ^= self.payload[i];
-            }
-
-            BUFFER[len + 3] = checksum;
-
-            &BUFFER[0..len + 4]
         }
     }
 }
