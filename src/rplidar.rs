@@ -7,7 +7,11 @@ use rppal::{
     uart::{Parity, Uart},
 };
 
-use crate::command::Command;
+use crate::{
+    command::Command,
+    payload_parser::PayloadParser,
+    rd_parser::{FlatResponse, ResponseDescriptorParser},
+};
 
 #[derive(Debug)]
 pub enum LidarError {
@@ -31,6 +35,11 @@ impl Error for LidarError {}
 pub struct RpLidar {
     motor_ctrl: Pwm,
     com: Uart,
+
+    rd_parser: ResponseDescriptorParser,
+    p_parser: PayloadParser,
+    curr_resp: Option<FlatResponse>,
+    buf: [u8; 1024],
 }
 
 impl RpLidar {
@@ -45,6 +54,11 @@ impl RpLidar {
         Ok(Self {
             motor_ctrl: pwm,
             com: uart,
+
+            rd_parser: ResponseDescriptorParser::default(),
+            p_parser: PayloadParser::default(),
+            curr_resp: None,
+            buf: [0; 1024],
         })
     }
 
@@ -65,6 +79,32 @@ impl RpLidar {
             Err(LidarError::CommandSendFailure)
         } else {
             Ok(())
+        }
+    }
+
+    pub fn scan(&mut self) {
+        if let Ok(n) = self.com.read(&mut self.buf) {
+            for byte in &self.buf[0..n] {
+                if self.curr_resp.is_some() {
+                    if let Some(payload) = self.p_parser.feed(*byte) {
+                        println!("Payload: {:?}", payload);
+                    }
+                } else {
+                    self.curr_resp = self.rd_parser.feed(*byte);
+                    if let Some(ref resp) = self.curr_resp {
+                        self.p_parser.set_payload_len(resp.payload_len as usize);
+                        println!("{:?}", resp)
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn scan_blocking(&mut self) -> Result<(), LidarError> {
+        self.send_command(Command::Scan)?;
+
+        loop {
+            self.scan()
         }
     }
 }
