@@ -3,4 +3,5 @@
 
 pub mod command;
 pub mod packet;
+pub mod parser;
 pub mod rplidar;
