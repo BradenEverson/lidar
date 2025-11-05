@@ -11,6 +11,7 @@ use crate::{
     command::Command,
     payload_parser::PayloadParser,
     rd_parser::{FlatResponse, ResponseDescriptorParser},
+    response::ScanResponse,
 };
 
 #[derive(Debug)]
@@ -88,7 +89,9 @@ impl RpLidar {
             for byte in &self.buf[0..n] {
                 if self.curr_resp.is_some() {
                     if let Some(payload) = self.p_parser.feed(*byte) {
-                        println!("Payload: {:?}", payload);
+                        if let Some(sr) = ScanResponse::try_from_bytes(&payload) {
+                            println!("Scan Response: {:?}", sr);
+                        }
                     }
                 } else {
                     self.curr_resp = self.rd_parser.feed(*byte);
