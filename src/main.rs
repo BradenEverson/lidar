@@ -12,4 +12,14 @@ fn main() {
         .expect("Failed to set read mode");
 
     pwm.set_duty_cycle(1.0).expect("Failed to set duty cycle");
+
+    uart.write(&[0xA5]).expect("Failed to write");
+    uart.write(&[0x20]).expect("Failed to write");
+
+    loop {
+        let mut buf = [0; 1024];
+        if let Ok(n) = uart.read(&mut buf) {
+            println!("Message: {:?}", &buf[0..n]);
+        }
+    }
 }
