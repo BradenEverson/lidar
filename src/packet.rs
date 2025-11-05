@@ -12,7 +12,16 @@ pub struct Packet {
 }
 
 impl Packet {
-    pub fn to_bytes(&self) -> &[u8] {
+    pub fn new(op: OpCode, payload: &[u8]) -> Self {
+        let mut cpy = [0; 255];
+        cpy[0..payload.len()].copy_from_slice(payload);
+        Self {
+            op,
+            len: payload.len() as u8,
+            payload: cpy,
+        }
+    }
+    pub fn to_bytes(self) -> &'static [u8] {
         let len = self.len as usize;
 
         // SAFETY : As described in the RPLIDAR datasheet, only
