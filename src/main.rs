@@ -14,16 +14,14 @@ fn main() {
 
     pwm.set_duty_cycle(0.0).expect("Failed to set duty cycle");
 
-    let mut parser = ResponseDescriptorParser::default();
+    let mut rd_parser = ResponseDescriptorParser::default();
 
     uart.write(&[0xA5, 0x25]).expect("Failed to write");
 
     loop {
         let mut buf = [0; 1024];
         if let Ok(n) = uart.read(&mut buf) {
-            for resp in parser.feed(&buf[0..n]) {
-                println!("{:?}", resp);
-            }
+            // Handle Payload/Response Descriptor parsing
         }
     }
 }
