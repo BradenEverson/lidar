@@ -78,6 +78,7 @@ impl RpLidar {
         if sent != packet.len() {
             Err(LidarError::CommandSendFailure)
         } else {
+            self.curr_resp = None;
             Ok(())
         }
     }
