@@ -1,8 +1,7 @@
-use lidar::payload_parser::{self, PayloadParser};
+use lidar::payload_parser::PayloadParser;
 use lidar::rd_parser::ResponseDescriptorParser;
 use rppal::pwm::Pwm;
 use rppal::uart::{Parity, Uart};
-use std::time::Duration;
 
 fn main() {
     let pwm = Pwm::with_pwmchip(0, 1).expect("Failed to initialize PWM");
@@ -10,8 +9,6 @@ fn main() {
     pwm.enable().expect("Failed to enable");
 
     let mut uart = Uart::new(115_200, Parity::None, 8, 1).expect("Failed to initialize UART");
-    uart.set_read_mode(1, Duration::from_millis(100))
-        .expect("Failed to set read mode");
 
     pwm.set_duty_cycle(1.0).expect("Failed to set duty cycle");
 
