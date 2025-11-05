@@ -1,4 +1,5 @@
-use lidar::parser::ResponseDescriptorParser;
+use lidar::payload_parser::{self, PayloadParser};
+use lidar::rd_parser::ResponseDescriptorParser;
 use rppal::pwm::Pwm;
 use rppal::uart::{Parity, Uart};
 use std::time::Duration;
@@ -15,19 +16,25 @@ fn main() {
     pwm.set_duty_cycle(1.0).expect("Failed to set duty cycle");
 
     let mut rd_parser = ResponseDescriptorParser::default();
+    let mut p_parser = PayloadParser::default();
+
     let mut curr_resp = None;
 
     uart.write(&[0xA5, 0x20]).expect("Failed to write");
 
+    let mut buf = [0; 1024];
+
     loop {
-        let mut buf = [0; 1024];
         if let Ok(n) = uart.read(&mut buf) {
             for byte in &buf[0..n] {
-                if let Some(ref resp) = curr_resp {
-                    // Parse payload
+                if curr_resp.is_some() {
+                    if let Some(payload) = p_parser.feed(*byte) {
+                        println!("Payload: {:?}", payload);
+                    }
                 } else {
                     curr_resp = rd_parser.feed(*byte);
                     if let Some(ref resp) = curr_resp {
+                        p_parser.set_payload_len(resp.payload_len as usize);
                         println!("{:?}", resp)
                     }
                 }

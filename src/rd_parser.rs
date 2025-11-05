@@ -10,9 +10,9 @@ pub struct ResponseDescriptorParser {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct FlatResponse {
-    payload_len: u32,
-    send_mode: u8,
-    dtype: u8,
+    pub payload_len: u32,
+    pub send_mode: u8,
+    pub dtype: u8,
 }
 
 impl ResponseDescriptorParser {
