@@ -41,6 +41,8 @@ pub struct RpLidar {
     p_parser: PayloadParser,
     curr_resp: Option<FlatResponse>,
     buf: [u8; 1024],
+
+    scan_handler: Option<fn(ScanResponse)>,
 }
 
 impl RpLidar {
@@ -55,12 +57,17 @@ impl RpLidar {
         Ok(Self {
             motor_ctrl: pwm,
             com: uart,
+            scan_handler: None,
 
             rd_parser: ResponseDescriptorParser::default(),
             p_parser: PayloadParser::default(),
             curr_resp: None,
             buf: [0; 1024],
         })
+    }
+
+    pub fn set_scan_handler(&mut self, handler: fn(ScanResponse)) {
+        self.scan_handler = Some(handler);
     }
 
     pub fn set_speed(&mut self, speed: f64) -> Result<(), LidarError> {
@@ -90,14 +97,15 @@ impl RpLidar {
                 if self.curr_resp.is_some() {
                     if let Some(payload) = self.p_parser.feed(*byte) {
                         if let Some(sr) = ScanResponse::try_from_bytes(&payload) {
-                            println!("Scan Response: {:?}", sr);
+                            if let Some(handler) = self.scan_handler {
+                                handler(sr);
+                            }
                         }
                     }
                 } else {
                     self.curr_resp = self.rd_parser.feed(*byte);
                     if let Some(ref resp) = self.curr_resp {
                         self.p_parser.set_payload_len(resp.payload_len as usize);
-                        println!("{:?}", resp)
                     }
                 }
             }
