@@ -10,7 +10,7 @@ fn main() {
 }
 
 fn read_scan(s: ScanResponse) {
-    if s.quality >= 10 && s.dist != 0.0 {
-        println!("Angle: {:.2}, dist: {:.2}mm", s.angle, s.dist);
+    if s.dist != 0.0 {
+        println!("{:.2}, {:.2}, {}", s.angle, s.dist, s.quality);
     }
 }

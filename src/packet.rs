@@ -29,7 +29,6 @@ impl Packet {
         // should even convert and send a single binary packet
         // at a time as well
         unsafe {
-            println!("{:?}", self.op);
             BUFFER[1] = self.op as u8;
 
             if self.len != 0 {
