@@ -1,3 +1,4 @@
+use lidar::parser::ResponseDescriptorParser;
 use rppal::pwm::Pwm;
 use rppal::uart::{Parity, Uart};
 use std::time::Duration;
@@ -11,14 +12,18 @@ fn main() {
     uart.set_read_mode(1, Duration::from_millis(100))
         .expect("Failed to set read mode");
 
-    pwm.set_duty_cycle(1.0).expect("Failed to set duty cycle");
+    pwm.set_duty_cycle(0.0).expect("Failed to set duty cycle");
 
-    uart.write(&[0xA5, 0x20]).expect("Failed to write");
+    let mut parser = ResponseDescriptorParser::default();
+
+    uart.write(&[0xA5, 0x25]).expect("Failed to write");
 
     loop {
         let mut buf = [0; 1024];
         if let Ok(n) = uart.read(&mut buf) {
-            println!("Message: {:X?}", &buf[0..n]);
+            for resp in parser.feed(&buf[0..n]) {
+                println!("{:?}", resp);
+            }
         }
     }
 }

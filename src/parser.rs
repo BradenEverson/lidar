@@ -3,7 +3,7 @@
 use std::mem;
 
 #[derive(Clone, Debug, Default)]
-pub struct ResponseParser {
+pub struct ResponseDescriptorParser {
     state: ParserState,
     curr: FlatResponse,
 }
@@ -16,7 +16,7 @@ pub struct FlatResponse {
     payload: Vec<u8>,
 }
 
-impl ResponseParser {
+impl ResponseDescriptorParser {
     pub fn feed(&mut self, bytes: &[u8]) -> Vec<FlatResponse> {
         let mut responses = vec![];
         for byte in bytes {
@@ -81,7 +81,7 @@ pub enum ParserState {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::{FlatResponse, ResponseParser};
+    use crate::parser::{FlatResponse, ResponseDescriptorParser};
 
     #[test]
     fn simple_response_descriptor() {
@@ -96,7 +96,7 @@ mod tests {
             payload: vec![0, 0, 0, 0, 0],
         };
 
-        let mut parser = ResponseParser::default();
+        let mut parser = ResponseDescriptorParser::default();
         let responses = parser.feed(&scan_resp);
 
         assert_eq!(responses[0], expected)
