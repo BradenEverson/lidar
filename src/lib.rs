@@ -2,3 +2,4 @@
 //! packets to higher level parsed objects
 
 pub mod rplidar;
+pub mod service;
