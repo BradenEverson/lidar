@@ -23,16 +23,16 @@
                     const isNew = dataView.getUint8(offset);
                     offset += 1;
                     
-                    const angle = dataView.getFloat32(offset, false); // false for big-endian
+                    const angle = dataView.getFloat32(offset, false);
                     offset += 4;
                     
-                    const dist = dataView.getFloat32(offset, false); // false for big-endian
+                    const dist = dataView.getFloat32(offset, false);
                     
                     console.log(`New: ${isNew}, Angle: ${angle.toFixed(2)}, Distance: ${dist.toFixed(2)}`);
                 };
                 reader.readAsArrayBuffer(event.data);
             } else {
-                console.log('Received text message:', event.data);
+                console.log("Received text message:", event.data);
             }
         });
     </script>
