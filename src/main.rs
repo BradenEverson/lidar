@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, sync::Arc};
 
 use hyper::server::conn::http1;
 use hyper_util::rt::TokioIo;
@@ -8,7 +8,10 @@ use lidar::{
 };
 use tokio::{
     net::TcpListener,
-    sync::mpsc::{UnboundedReceiver, UnboundedSender},
+    sync::{
+        Mutex,
+        mpsc::{UnboundedReceiver, UnboundedSender},
+    },
 };
 
 #[tokio::main]
@@ -27,22 +30,25 @@ async fn main() {
 
     println!("Listening on Port {port}");
 
+    let rx = Arc::new(Mutex::new(rx));
     tokio::spawn(async move {
-        let (socket, _) = listener
-            .accept()
-            .await
-            .expect("Error accepting incoming connection");
-
-        let io = TokioIo::new(socket);
-
-        let service = LidarService::new(rx);
-        tokio::spawn(async move {
-            http1::Builder::new()
-                .serve_connection(io, service)
-                .with_upgrades()
+        loop {
+            let (socket, _) = listener
+                .accept()
                 .await
-                .expect("Failed to serve connection")
-        });
+                .expect("Error accepting incoming connection");
+
+            let io = TokioIo::new(socket);
+            let service = LidarService::new(rx.clone());
+
+            tokio::spawn(async move {
+                http1::Builder::new()
+                    .serve_connection(io, service)
+                    .with_upgrades()
+                    .await
+                    .expect("Failed to serve connection")
+            });
+        }
     });
 
     rplidar.set_speed(1.0).expect("Failed to set speed");

@@ -1,1 +1,40 @@
-Hi
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIDAR Vis</title>
+</head>
+<body>
+    <h1>LIDAR Vis</h1>
+
+    <script>
+        const socket = new WebSocket("/");
+
+        socket.addEventListener("message", (event) => {
+            if (event.data instanceof Blob) {
+                const reader = new FileReader();
+                reader.onload = function() {
+                    const arrayBuffer = reader.result;
+                    const dataView = new DataView(arrayBuffer);
+                    
+                    let offset = 0;
+                    
+                    const isNew = dataView.getUint8(offset);
+                    offset += 1;
+                    
+                    const angle = dataView.getFloat32(offset, false); // false for big-endian
+                    offset += 4;
+                    
+                    const dist = dataView.getFloat32(offset, false); // false for big-endian
+                    
+                    console.log(`New: ${isNew}, Angle: ${angle.toFixed(2)}, Distance: ${dist.toFixed(2)}`);
+                };
+                reader.readAsArrayBuffer(event.data);
+            } else {
+                console.log('Received text message:', event.data);
+            }
+        });
+    </script>
+</body>
+</html>

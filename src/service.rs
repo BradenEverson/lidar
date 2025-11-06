@@ -25,10 +25,8 @@ pub struct LidarService {
 
 impl LidarService {
     /// Creates a new Lidar Service
-    pub fn new(rx: UnboundedReceiver<ScanResponse>) -> Self {
-        Self {
-            recv: Arc::new(Mutex::new(rx)),
-        }
+    pub fn new(rx: Arc<Mutex<UnboundedReceiver<ScanResponse>>>) -> Self {
+        Self { recv: rx }
     }
 }
 
@@ -46,19 +44,17 @@ impl Service<Request<body::Incoming>> for LidarService {
             tokio::spawn(async move {
                 let (mut ws_write, _) = websocket.await.expect("Await websocket").split();
 
-                // This is mega blocking, only 1 ws connection will ever work at a time but this is
-                // fine
-                let mut rx = rx.lock().await;
+                while let Some(msg) = { rx.lock().await.recv().await } {
+                    if msg.dist > 0.0 {
+                        let mut payload = vec![];
+                        payload.push(if msg.new { 1 } else { 0 });
+                        payload.extend_from_slice(&msg.angle.to_be_bytes());
+                        payload.extend_from_slice(&msg.dist.to_be_bytes());
 
-                while let Some(msg) = rx.recv().await {
-                    let mut payload = vec![];
-                    payload.push(if msg.new { 1 } else { 0 });
-                    payload.extend_from_slice(&msg.angle.to_be_bytes());
-                    payload.extend_from_slice(&msg.dist.to_be_bytes());
-
-                    let _ = ws_write.send(Message::binary(payload)).await.map_err(|_| {
-                        println!("ERROR: Failed to send");
-                    });
+                        let _ = ws_write.send(Message::binary(payload)).await.map_err(|_| {
+                            println!("ERROR: Failed to send");
+                        });
+                    }
                 }
             });
 
