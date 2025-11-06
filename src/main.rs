@@ -17,5 +17,5 @@ fn read_scan(s: ScanResponse) {
 }
 
 fn polar_to_rectangular(r: f32, theta: f32) -> (f32, f32) {
-    (r * theta.cos(), r * theta.sin())
+    (r.to_radians() * theta.cos(), r.to_radians() * theta.sin())
 }
