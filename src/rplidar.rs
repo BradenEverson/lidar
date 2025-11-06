@@ -6,6 +6,7 @@ use rppal::{
     pwm::Pwm,
     uart::{Parity, Uart},
 };
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::rplidar::{
     command::Command,
@@ -49,6 +50,7 @@ pub struct RpLidar {
     buf: [u8; 1024],
 
     scan_handler: Option<fn(ScanResponse)>,
+    scan_sender: Option<UnboundedSender<ScanResponse>>,
 }
 
 impl RpLidar {
@@ -64,6 +66,7 @@ impl RpLidar {
             motor_ctrl: pwm,
             com: uart,
             scan_handler: None,
+            scan_sender: None,
 
             rd_parser: ResponseDescriptorParser::default(),
             p_parser: PayloadParser::default(),
@@ -74,6 +77,10 @@ impl RpLidar {
 
     pub fn set_scan_handler(&mut self, handler: fn(ScanResponse)) {
         self.scan_handler = Some(handler);
+    }
+
+    pub fn set_scan_sender(&mut self, tx: UnboundedSender<ScanResponse>) {
+        self.scan_sender = Some(tx)
     }
 
     pub fn set_speed(&mut self, speed: f64) -> Result<(), LidarError> {
@@ -103,6 +110,9 @@ impl RpLidar {
                 if self.curr_resp.is_some() {
                     if let Some(payload) = self.p_parser.feed(*byte) {
                         if let Some(sr) = ScanResponse::try_from_bytes(&payload) {
+                            if let Some(sender) = &mut self.scan_sender {
+                                sender.send(sr).expect("Failed to send");
+                            }
                             if let Some(handler) = self.scan_handler {
                                 handler(sr);
                             }

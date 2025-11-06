@@ -2,7 +2,7 @@
 
 //! Service implementation
 
-use std::{fs::File, future::Future, io::Read, pin::Pin};
+use std::{fs::File, future::Future, io::Read, pin::Pin, sync::Arc};
 
 use futures::{SinkExt, StreamExt};
 use http_body_util::Full;
@@ -12,11 +12,25 @@ use hyper::{
     service::Service,
 };
 use hyper_tungstenite::{is_upgrade_request, upgrade};
-use std::io::Cursor;
+use tokio::sync::{Mutex, mpsc::UnboundedReceiver};
 use tokio_tungstenite::tungstenite::Message;
 
-#[derive(Default)]
-pub struct LidarService {}
+use crate::rplidar::response::ScanResponse;
+
+/// Lidar websocket communication manager
+pub struct LidarService {
+    /// The receiving end of a scan response sender
+    recv: Arc<Mutex<UnboundedReceiver<ScanResponse>>>,
+}
+
+impl LidarService {
+    /// Creates a new Lidar Service
+    pub fn new(rx: UnboundedReceiver<ScanResponse>) -> Self {
+        Self {
+            recv: Arc::new(Mutex::new(rx)),
+        }
+    }
+}
 
 #[allow(tail_expr_drop_order)]
 impl Service<Request<body::Incoming>> for LidarService {
@@ -27,14 +41,25 @@ impl Service<Request<body::Incoming>> for LidarService {
     fn call(&self, mut req: Request<body::Incoming>) -> Self::Future {
         if is_upgrade_request(&req) {
             let (response, websocket) = upgrade(&mut req, None).expect("Failed to upgrade to WS");
+            let rx = self.recv.clone();
 
             tokio::spawn(async move {
-                let (mut ws_write, mut ws_read) = websocket.await.expect("Await websocket").split();
+                let (mut ws_write, _) = websocket.await.expect("Await websocket").split();
 
-                // ws_write
-                //     .send(Message::binary(id.to_be_bytes()))
-                //     .await
-                //     .expect("Send ID over");
+                // This is mega blocking, only 1 ws connection will ever work at a time but this is
+                // fine
+                let mut rx = rx.lock().await;
+
+                while let Some(msg) = rx.recv().await {
+                    let mut payload = vec![];
+                    payload.push(if msg.new { 1 } else { 0 });
+                    payload.extend_from_slice(&msg.angle.to_be_bytes());
+                    payload.extend_from_slice(&msg.dist.to_be_bytes());
+
+                    let _ = ws_write.send(Message::binary(payload)).await.map_err(|_| {
+                        println!("ERROR: Failed to send");
+                    });
+                }
             });
 
             Box::pin(async { Ok(response) })
