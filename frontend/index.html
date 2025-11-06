@@ -7,8 +7,68 @@
 </head>
 <body>
     <h1>LIDAR Vis</h1>
+    <canvas id="polarCanvas" width="600" height="600"></canvas>
 
     <script>
+        const canvas = document.getElementById("polarCanvas");
+        const ctx = canvas.getContext("2d");
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const maxRadius = Math.min(centerX, centerY) - 20;
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawPolarGrid();
+        }
+
+        function drawPolarGrid() {
+            ctx.strokeStyle = "#ccc";
+            ctx.lineWidth = 1;
+
+            for (let r = 1; r <= 5; r++) {
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, (maxRadius / 5) * r, 0, 2 * Math.PI);
+                ctx.stroke();
+                
+                const distance = (8000 / 5) * r;
+                ctx.fillStyle = "#000";
+                ctx.fillText(distance + "mm", centerX + (maxRadius / 5) * r + 5, centerY);
+            }
+            
+            for (let angle = 0; angle < 360; angle += 30) {
+                const rad = angle * Math.PI / 180;
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.lineTo(
+                    centerX + maxRadius * Math.cos(rad),
+                    centerY + maxRadius * Math.sin(rad)
+                );
+                ctx.stroke();
+                
+                ctx.fillText(angle, 
+                    centerX + (maxRadius + 15) * Math.cos(rad),
+                    centerY + (maxRadius + 15) * Math.sin(rad)
+                );
+            }
+        }
+
+        function plotPoint(angle, distance) {
+            const maxDistance = 8000;
+            const scaledDistance = Math.min(distance / maxDistance, 1) * maxRadius;
+            
+            const rad = (angle % 360) * Math.PI / 180;
+            
+            const x = centerX + scaledDistance * Math.cos(rad);
+            const y = centerY + scaledDistance * Math.sin(rad);
+            
+            ctx.fillStyle = "red";
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        clearCanvas();
+
         const socket = new WebSocket("/");
 
         socket.addEventListener("message", (event) => {
@@ -27,8 +87,13 @@
                     offset += 4;
                     
                     const dist = dataView.getFloat32(offset, false);
+
+                    if (isNew != 0) {
+                        console.log("Clearing");
+                        clearCanvas();
+                    }
                     
-                    console.log(`New: ${isNew}, Angle: ${angle.toFixed(2)}, Distance: ${dist.toFixed(2)}`);
+                    plotPoint(angle, dist);
                 };
                 reader.readAsArrayBuffer(event.data);
             } else {
