@@ -1,6 +1,6 @@
 //! Data Response Format
 
-use crate::packet::OpCode;
+use crate::rplidar::packet::OpCode;
 
 pub enum DataResponse {
     ScanResponse(ScanResponse),

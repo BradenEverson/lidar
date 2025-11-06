@@ -1,4 +1,4 @@
-use lidar::{response::ScanResponse, rplidar::RpLidar};
+use lidar::rplidar::{RpLidar, response::ScanResponse};
 
 fn main() {
     let mut rplidar = RpLidar::init(0, 1).expect("Failed to init RpLidar");

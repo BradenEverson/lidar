@@ -7,12 +7,18 @@ use rppal::{
     uart::{Parity, Uart},
 };
 
-use crate::{
+use crate::rplidar::{
     command::Command,
     payload_parser::PayloadParser,
     rd_parser::{FlatResponse, ResponseDescriptorParser},
     response::ScanResponse,
 };
+
+pub mod command;
+pub mod packet;
+pub mod payload_parser;
+pub mod rd_parser;
+pub mod response;
 
 #[derive(Debug)]
 pub enum LidarError {

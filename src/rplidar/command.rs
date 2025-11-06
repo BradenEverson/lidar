@@ -1,6 +1,6 @@
 //! Higher level command interface
 
-use crate::packet::{OpCode, Packet};
+use crate::rplidar::packet::{OpCode, Packet};
 
 pub enum Command {
     Stop,
@@ -46,7 +46,7 @@ pub enum ConfOpCode {
 
 #[cfg(test)]
 mod tests {
-    use crate::command::Command;
+    use crate::rplidar::command::Command;
 
     #[test]
     fn several_packets() {
