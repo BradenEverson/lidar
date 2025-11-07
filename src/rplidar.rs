@@ -89,6 +89,10 @@ impl RpLidar {
             .map_err(|e| LidarError::PwmError(e))
     }
 
+    pub fn stop(&mut self) -> Result<(), LidarError> {
+        self.send_command(Command::Stop)
+    }
+
     pub fn send_command(&mut self, cmd: Command) -> Result<(), LidarError> {
         let packet = cmd.to_packet();
         let sent = self
