@@ -352,7 +352,6 @@ dependencies = [
  "rppal",
  "tokio",
  "tokio-tungstenite",
- "tungstenite",
 ]
 
 [[package]]
