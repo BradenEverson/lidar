@@ -9,7 +9,7 @@ use rppal::{
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::rplidar::{
-    command::Command,
+    command::{Command, WorkingMode},
     payload_parser::PayloadParser,
     rd_parser::{FlatResponse, ResponseDescriptorParser},
     response::ScanResponse,
@@ -101,6 +101,40 @@ impl RpLidar {
         } else {
             self.curr_resp = None;
             Ok(())
+        }
+    }
+
+    pub fn extended_scan_loop(&mut self, working_mode: u8) -> Result<(), LidarError> {
+        self.send_command(Command::ExpressScan(WorkingMode::Extended(working_mode)))?;
+
+        loop {
+            self.extended_scan()
+        }
+    }
+
+    pub fn extended_scan(&mut self) {
+        if let Ok(n) = self.com.read(&mut self.buf) {
+            for byte in &self.buf[0..n] {
+                if self.curr_resp.is_some() {
+                    if let Some(payload) = self.p_parser.feed(*byte) {
+                        println!("{payload:?}")
+                        // if let Some(sr) = ScanResponse::try_from_bytes(&payload) {
+                        //     if let Some(sender) = &mut self.scan_sender {
+                        //         sender.send(sr).expect("Failed to send");
+                        //     }
+                        //     if let Some(handler) = self.scan_handler {
+                        //         handler(sr);
+                        //     }
+                        // }
+                    }
+                } else {
+                    self.curr_resp = self.rd_parser.feed(*byte);
+                    if let Some(ref resp) = self.curr_resp {
+                        println!("{}", resp.payload_len);
+                        self.p_parser.set_payload_len(resp.payload_len as usize);
+                    }
+                }
+            }
         }
     }
 
