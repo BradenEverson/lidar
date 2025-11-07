@@ -1,15 +1,21 @@
 //! Data Response Format
 
+use std::mem::MaybeUninit;
+
 use crate::rplidar::packet::OpCode;
 
 pub enum DataResponse {
     ScanResponse(ScanResponse),
+    ExpressDenseResponse(ExpressDenseResponse),
 }
 
 impl DataResponse {
     pub fn try_from_packet(sent_from: OpCode, bytes: &[u8]) -> Option<Self> {
         match sent_from {
             OpCode::Scan => ScanResponse::try_from_bytes(bytes).map(ScanResponse::wrap),
+            OpCode::ExpressScan => {
+                ExpressDenseResponse::try_from_bytes(bytes).map(ExpressDenseResponse::wrap)
+            }
             _ => todo!("Implement other data packet parsing modes"),
         }
     }
@@ -65,4 +71,62 @@ impl ScanResponse {
     pub fn wrap(self) -> DataResponse {
         DataResponse::ScanResponse(self)
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ExpressDenseResponse {
+    pub s: u8,
+    pub checksum: u8,
+    pub start_angle_q6: u16,
+    pub cabins: [RawCabin; 40],
+}
+
+impl ExpressDenseResponse {
+    pub fn try_from_bytes(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() != 84 {
+            return None;
+        }
+
+        let f1 = bytes[0] & 0xF0;
+        let f2 = (bytes[1] & 0xF0) >> 4;
+
+        if f1 | f2 != 0xA5 {
+            return None;
+        }
+
+        let c1 = bytes[0] & 0x0F;
+        let c2 = bytes[1] & 0x0F;
+
+        let angle_l = bytes[2] as u16;
+        let angle_h = (bytes[3] & 0x7F) as u16;
+
+        let start_angle_q6 = angle_h << 4 | angle_l;
+
+        let s = bytes[3] & 0x80 >> 7;
+
+        let checksum = (c2 << 4) | c1;
+        let mut cabins: [RawCabin; 40] = unsafe { MaybeUninit::uninit().assume_init() };
+
+        let cabin_bytes = &bytes[4..];
+
+        for (i, cabin) in cabin_bytes.chunks(2).enumerate() {
+            cabins[i].data = [cabin[0], cabin[1]]
+        }
+
+        Some(Self {
+            s,
+            checksum,
+            start_angle_q6,
+            cabins,
+        })
+    }
+
+    pub fn wrap(self) -> DataResponse {
+        DataResponse::ExpressDenseResponse(self)
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct RawCabin {
+    pub data: [u8; 2],
 }

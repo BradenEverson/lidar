@@ -12,7 +12,7 @@ use crate::rplidar::{
     command::{Command, WorkingMode},
     payload_parser::PayloadParser,
     rd_parser::{FlatResponse, ResponseDescriptorParser},
-    response::ScanResponse,
+    response::{ExpressDenseResponse, ScanResponse},
 };
 
 pub mod command;
@@ -121,15 +121,15 @@ impl RpLidar {
             for byte in &self.buf[0..n] {
                 if self.curr_resp.is_some() {
                     if let Some(payload) = self.p_parser.feed(*byte) {
-                        println!("{payload:X?}")
-                        // if let Some(sr) = ScanResponse::try_from_bytes(&payload) {
-                        //     if let Some(sender) = &mut self.scan_sender {
-                        //         sender.send(sr).expect("Failed to send");
-                        //     }
-                        //     if let Some(handler) = self.scan_handler {
-                        //         handler(sr);
-                        //     }
-                        // }
+                        if let Some(sr) = ExpressDenseResponse::try_from_bytes(&payload) {
+                            println!("{sr:?}")
+                            // if let Some(sender) = &mut self.scan_sender {
+                            //     sender.send(sr).expect("Failed to send");
+                            // }
+                            // if let Some(handler) = self.scan_handler {
+                            //     handler(sr);
+                            // }
+                        }
                     }
                 } else {
                     self.curr_resp = self.rd_parser.feed(*byte);
