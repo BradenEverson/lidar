@@ -121,7 +121,7 @@ impl RpLidar {
             for byte in &self.buf[0..n] {
                 if self.curr_resp.is_some() {
                     if let Some(payload) = self.p_parser.feed(*byte) {
-                        println!("{payload:?}")
+                        println!("{payload:X?}")
                         // if let Some(sr) = ScanResponse::try_from_bytes(&payload) {
                         //     if let Some(sender) = &mut self.scan_sender {
                         //         sender.send(sr).expect("Failed to send");
@@ -134,7 +134,7 @@ impl RpLidar {
                 } else {
                     self.curr_resp = self.rd_parser.feed(*byte);
                     if let Some(ref resp) = self.curr_resp {
-                        println!("{}", resp.payload_len);
+                        println!("Payload Size: {}", resp.payload_len);
                         self.p_parser.set_payload_len(resp.payload_len as usize);
                     }
                 }
