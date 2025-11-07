@@ -55,12 +55,12 @@ pub struct RpLidar {
 
 impl RpLidar {
     pub fn init(chip: u8, idx: u8) -> Result<Self, LidarError> {
-        let pwm = Pwm::with_pwmchip(chip, idx).map_err(|e| LidarError::PwmError(e))?;
+        let pwm = Pwm::with_pwmchip(chip, idx).map_err(LidarError::PwmError)?;
         pwm.set_frequency(1000.0, 0.0)
-            .map_err(|e| LidarError::PwmError(e))?;
-        pwm.enable().map_err(|e| LidarError::PwmError(e))?;
+            .map_err(LidarError::PwmError)?;
+        pwm.enable().map_err(LidarError::PwmError)?;
 
-        let uart = Uart::new(115_200, Parity::None, 8, 1).map_err(|e| LidarError::UartError(e))?;
+        let uart = Uart::new(115_200, Parity::None, 8, 1).map_err(LidarError::UartError)?;
 
         Ok(Self {
             motor_ctrl: pwm,
@@ -86,7 +86,7 @@ impl RpLidar {
     pub fn set_speed(&mut self, speed: f64) -> Result<(), LidarError> {
         self.motor_ctrl
             .set_duty_cycle(speed)
-            .map_err(|e| LidarError::PwmError(e))
+            .map_err(LidarError::PwmError)
     }
 
     pub fn stop(&mut self) -> Result<(), LidarError> {
@@ -98,7 +98,7 @@ impl RpLidar {
         let sent = self
             .com
             .write(packet)
-            .map_err(|e| LidarError::UartError(e))?;
+            .map_err(LidarError::UartError)?;
 
         if sent != packet.len() {
             Err(LidarError::CommandSendFailure)
@@ -120,8 +120,8 @@ impl RpLidar {
         if let Ok(n) = self.com.read(&mut self.buf) {
             for byte in &self.buf[0..n] {
                 if self.curr_resp.is_some() {
-                    if let Some(payload) = self.p_parser.feed(*byte) {
-                        if let Some(sr) = ExpressDenseResponse::try_from_bytes(&payload) {
+                    if let Some(payload) = self.p_parser.feed(*byte)
+                        && let Some(sr) = ExpressDenseResponse::try_from_bytes(&payload) {
                             println!("{sr:?}")
                             // if let Some(sender) = &mut self.scan_sender {
                             //     sender.send(sr).expect("Failed to send");
@@ -130,7 +130,6 @@ impl RpLidar {
                             //     handler(sr);
                             // }
                         }
-                    }
                 } else {
                     self.curr_resp = self.rd_parser.feed(*byte);
                     if let Some(ref resp) = self.curr_resp {
@@ -146,8 +145,8 @@ impl RpLidar {
         if let Ok(n) = self.com.read(&mut self.buf) {
             for byte in &self.buf[0..n] {
                 if self.curr_resp.is_some() {
-                    if let Some(payload) = self.p_parser.feed(*byte) {
-                        if let Some(sr) = ScanResponse::try_from_bytes(&payload) {
+                    if let Some(payload) = self.p_parser.feed(*byte)
+                        && let Some(sr) = ScanResponse::try_from_bytes(&payload) {
                             if let Some(sender) = &mut self.scan_sender {
                                 sender.send(sr).expect("Failed to send");
                             }
@@ -155,7 +154,6 @@ impl RpLidar {
                                 handler(sr);
                             }
                         }
-                    }
                 } else {
                     self.curr_resp = self.rd_parser.feed(*byte);
                     if let Some(ref resp) = self.curr_resp {

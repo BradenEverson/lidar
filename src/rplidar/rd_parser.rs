@@ -38,7 +38,7 @@ impl ResponseDescriptorParser {
 
             (ParserState::ReadingDataType, d) => {
                 self.curr.dtype = d;
-                res = Some(mem::replace(&mut self.curr, FlatResponse::default()));
+                res = Some(std::mem::take(&mut self.curr));
                 self.state = ParserState::WaitingForHeader;
             }
 

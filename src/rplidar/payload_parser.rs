@@ -11,7 +11,7 @@ pub struct PayloadParser {
 impl PayloadParser {
     pub fn set_payload_len(&mut self, len: usize) {
         self.len = len;
-        if self.payload.len() != 0 {
+        if !self.payload.is_empty() {
             self.payload = vec![];
         }
     }
@@ -20,7 +20,7 @@ impl PayloadParser {
         let mut res = None;
         self.payload.push(byte);
         if self.payload.len() == self.len {
-            res = Some(mem::replace(&mut self.payload, vec![]));
+            res = Some(std::mem::take(&mut self.payload));
         }
 
         res

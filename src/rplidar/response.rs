@@ -42,7 +42,7 @@ impl ScanResponse {
             return None;
         }
 
-        let new = if s == 1 { true } else { false };
+        let new = s == 1;
 
         let quality = bytes[0] >> 2;
 
@@ -105,6 +105,8 @@ impl ExpressDenseResponse {
         let s = bytes[3] & 0x80 >> 7;
 
         let checksum = (c2 << 4) | c1;
+
+        #[allow(clippy::uninit_assumed_init)]
         let mut cabins: [RawCabin; 40] = unsafe { MaybeUninit::uninit().assume_init() };
 
         let cabin_bytes = &bytes[4..];
@@ -128,5 +130,11 @@ impl ExpressDenseResponse {
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct RawCabin {
-    pub data: [u8; 2],
+    data: [u8; 2],
+}
+
+impl RawCabin {
+    pub fn to_dist(&self) -> u16 {
+        u16::from_be_bytes(self.data)
+    }
 }
