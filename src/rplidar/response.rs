@@ -10,11 +10,11 @@ pub enum DataResponse {
 }
 
 impl DataResponse {
-    pub fn try_from_packet(sent_from: OpCode, bytes: &[u8], prev_w: u16) -> Option<Self> {
+    pub fn try_from_packet(sent_from: OpCode, bytes: &[u8]) -> Option<Self> {
         match sent_from {
             OpCode::Scan => ScanResponse::try_from_bytes(bytes).map(ScanResponse::wrap),
             OpCode::ExpressScan => {
-                ExpressDenseResponse::try_from_bytes(bytes, prev_w).map(ExpressDenseResponse::wrap)
+                ExpressDenseResponse::try_from_bytes(bytes).map(ExpressDenseResponse::wrap)
             }
             _ => todo!("Implement other data packet parsing modes"),
         }
@@ -88,7 +88,7 @@ pub struct ExpressDenseResponse {
 }
 
 impl ExpressDenseResponse {
-    pub fn try_from_bytes(bytes: &[u8], prev_w: u16) -> Option<Self> {
+    pub fn try_from_bytes(bytes: &[u8]) -> Option<Self> {
         if bytes.len() != 84 {
             return None;
         }
@@ -118,14 +118,6 @@ impl ExpressDenseResponse {
 
         let cabin_bytes = &bytes[4..];
 
-        let prev_w = prev_w as f32 / 64.0;
-
-        let angle_diff = if w <= prev_w {
-            prev_w - w
-        } else {
-            360.0 + prev_w - w
-        };
-
         for (k, cabin) in cabin_bytes.chunks(2).enumerate() {
             let dist = RawCabin {
                 data: [cabin[0], cabin[1]],
@@ -133,7 +125,7 @@ impl ExpressDenseResponse {
             .to_dist();
 
             cabins[k].dist = dist as f32 / 4.0;
-            cabins[k].angle = w + (angle_diff / 40.0) * k as f32;
+            cabins[k].angle = w as f32 / 64.0;
         }
 
         Some(Self {
@@ -142,6 +134,21 @@ impl ExpressDenseResponse {
             start_angle_q6,
             cabins,
         })
+    }
+
+    pub fn fix_angles(&mut self, w_next: u16) {
+        let w = self.start_angle_q6 as f32 / 64.0;
+        let w_next = w_next as f32 / 64.0;
+        let angle_diff = if w <= w_next {
+            w_next - w
+        } else {
+            360.0 + w_next - w
+        };
+        let angle = angle_diff / 40.0;
+
+        for (k, cabin) in self.cabins.iter_mut().enumerate() {
+            cabin.angle += angle * k as f32;
+        }
     }
 
     pub fn wrap(self) -> DataResponse {

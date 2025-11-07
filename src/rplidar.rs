@@ -51,8 +51,7 @@ pub struct RpLidar {
 
     scan_handler: Option<fn(ScanResponse)>,
     scan_sender: Option<UnboundedSender<ExpressDenseResponse>>,
-
-    prev_w: u16,
+    prev_resp: Option<ExpressDenseResponse>,
 }
 
 impl RpLidar {
@@ -74,7 +73,7 @@ impl RpLidar {
             p_parser: PayloadParser::default(),
             curr_resp: None,
             buf: [0; 1024],
-            prev_w: 0,
+            prev_resp: None,
         })
     }
 
@@ -121,13 +120,17 @@ impl RpLidar {
             for byte in &self.buf[0..n] {
                 if self.curr_resp.is_some() {
                     if let Some(payload) = self.p_parser.feed(*byte)
-                        && let Some(sr) =
-                            ExpressDenseResponse::try_from_bytes(&payload, self.prev_w)
+                        && let Some(sr) = ExpressDenseResponse::try_from_bytes(&payload)
                     {
-                        self.prev_w = sr.start_angle_q6;
-                        if let Some(sender) = &mut self.scan_sender {
-                            sender.send(sr).expect("Failed to send");
+                        if let Some(prev) = &mut self.prev_resp {
+                            prev.fix_angles(sr.start_angle_q6);
+
+                            if let Some(sender) = &mut self.scan_sender {
+                                sender.send(*prev).expect("Failed to send");
+                            }
                         }
+
+                        self.prev_resp = Some(sr);
                     }
                 } else {
                     self.curr_resp = self.rd_parser.feed(*byte);
