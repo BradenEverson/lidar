@@ -12,7 +12,7 @@ use crate::rplidar::{
     command::{Command, WorkingMode},
     payload_parser::PayloadParser,
     rd_parser::{FlatResponse, ResponseDescriptorParser},
-    response::{ExpressDenseResponse, ScanResponse},
+    response::{ExpressResponse, ScanResponse},
 };
 
 pub mod command;
@@ -50,8 +50,7 @@ pub struct RpLidar {
     buf: [u8; 1024],
 
     scan_handler: Option<fn(ScanResponse)>,
-    scan_sender: Option<UnboundedSender<ExpressDenseResponse>>,
-    prev_resp: Option<ExpressDenseResponse>,
+    scan_sender: Option<UnboundedSender<ExpressResponse>>,
 }
 
 impl RpLidar {
@@ -73,7 +72,6 @@ impl RpLidar {
             p_parser: PayloadParser::default(),
             curr_resp: None,
             buf: [0; 1024],
-            prev_resp: None,
         })
     }
 
@@ -81,7 +79,7 @@ impl RpLidar {
         self.scan_handler = Some(handler);
     }
 
-    pub fn set_scan_sender(&mut self, tx: UnboundedSender<ExpressDenseResponse>) {
+    pub fn set_scan_sender(&mut self, tx: UnboundedSender<ExpressResponse>) {
         self.scan_sender = Some(tx)
     }
 
@@ -120,20 +118,12 @@ impl RpLidar {
             for byte in &self.buf[0..n] {
                 if self.curr_resp.is_some() {
                     if let Some(payload) = self.p_parser.feed(*byte)
-                        && let Some(sr) = ExpressDenseResponse::try_from_bytes(&payload)
+                        && let Some(sr) = ExpressResponse::try_from_bytes(&payload)
+                        && let Some(sender) = &mut self.scan_sender
                     {
-                        if let Some(prev) = &mut self.prev_resp {
-                            prev.fix_angles(sr.start_angle_q6);
-
-                            if let Some(sender) = &mut self.scan_sender {
-                                sender.send(*prev).expect("Failed to send");
-                            }
-                        }
-
-                        self.prev_resp = Some(sr);
+                        sender.send(sr).expect("Failed to send");
                     }
                 } else {
-                    println!("{:?}", &self.buf[0..n]);
                     self.curr_resp = self.rd_parser.feed(*byte);
                     if let Some(ref resp) = self.curr_resp {
                         println!("Payload Size: {}", resp.payload_len);

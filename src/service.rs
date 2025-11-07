@@ -15,17 +15,17 @@ use hyper_tungstenite::{is_upgrade_request, upgrade};
 use tokio::sync::{Mutex, mpsc::UnboundedReceiver};
 use tokio_tungstenite::tungstenite::Message;
 
-use crate::rplidar::response::ExpressDenseResponse;
+use crate::rplidar::response::ExpressResponse;
 
 /// Lidar websocket communication manager
 pub struct LidarService {
     /// The receiving end of a scan response sender
-    recv: Arc<Mutex<UnboundedReceiver<ExpressDenseResponse>>>,
+    recv: Arc<Mutex<UnboundedReceiver<ExpressResponse>>>,
 }
 
 impl LidarService {
     /// Creates a new Lidar Service
-    pub fn new(rx: Arc<Mutex<UnboundedReceiver<ExpressDenseResponse>>>) -> Self {
+    pub fn new(rx: Arc<Mutex<UnboundedReceiver<ExpressResponse>>>) -> Self {
         Self { recv: rx }
     }
 }

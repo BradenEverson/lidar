@@ -6,7 +6,7 @@ use crate::rplidar::packet::OpCode;
 
 pub enum DataResponse {
     ScanResponse(ScanResponse),
-    ExpressDenseResponse(ExpressDenseResponse),
+    ExpressResponse(ExpressResponse),
 }
 
 impl DataResponse {
@@ -14,7 +14,7 @@ impl DataResponse {
         match sent_from {
             OpCode::Scan => ScanResponse::try_from_bytes(bytes).map(ScanResponse::wrap),
             OpCode::ExpressScan => {
-                ExpressDenseResponse::try_from_bytes(bytes).map(ExpressDenseResponse::wrap)
+                ExpressResponse::try_from_bytes(bytes).map(ExpressResponse::wrap)
             }
             _ => todo!("Implement other data packet parsing modes"),
         }
@@ -80,16 +80,16 @@ impl ScanResponse {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ExpressDenseResponse {
+pub struct ExpressResponse {
     pub s: u8,
     pub checksum: u8,
     pub start_angle_q6: u16,
-    pub cabins: [Scan; 40],
+    pub cabins: [Scan; 96],
 }
 
-impl ExpressDenseResponse {
+impl ExpressResponse {
     pub fn try_from_bytes(bytes: &[u8]) -> Option<Self> {
-        if bytes.len() != 84 {
+        if bytes.len() != 132 {
             return None;
         }
 
@@ -104,25 +104,25 @@ impl ExpressDenseResponse {
         let c2 = bytes[1] & 0x0F;
 
         let start_angle_q6 = u16::from_le_bytes([bytes[2], bytes[3]]) & 0x7FFF;
-        let w = start_angle_q6 as f32 / 64.0;
 
         let s = bytes[3] & 0x80 >> 7;
 
         let checksum = (c2 << 4) | c1;
 
         #[allow(clippy::uninit_assumed_init)]
-        let mut cabins: [Scan; 40] = unsafe { MaybeUninit::uninit().assume_init() };
+        let cabins: [Scan; 96] = unsafe { MaybeUninit::uninit().assume_init() };
 
         let cabin_bytes = &bytes[4..];
 
-        for (k, cabin) in cabin_bytes.chunks(2).enumerate() {
-            let dist = RawCabin {
-                data: [cabin[0], cabin[1]],
-            }
-            .to_dist();
-
-            cabins[k].dist = dist as f32 / 4.0;
-            cabins[k].angle = w as f32 / 64.0;
+        for (k, cabin) in cabin_bytes.chunks(4).enumerate() {
+            println!("{k} - {cabin:X?}");
+            // let dist = RawCabin {
+            //     data: [cabin[0], cabin[1]],
+            // }
+            // .to_dist();
+            //
+            // cabins[k].dist = dist as f32 / 4.0;
+            // cabins[k].angle = w as f32 / 64.0;
         }
 
         Some(Self {
@@ -153,7 +153,7 @@ impl ExpressDenseResponse {
     }
 
     pub fn wrap(self) -> DataResponse {
-        DataResponse::ExpressDenseResponse(self)
+        DataResponse::ExpressResponse(self)
     }
 }
 
