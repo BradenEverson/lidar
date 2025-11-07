@@ -103,10 +103,7 @@ impl ExpressDenseResponse {
         let c1 = bytes[0] & 0x0F;
         let c2 = bytes[1] & 0x0F;
 
-        let angle_l = bytes[2] as u16;
-        let angle_h = (bytes[3] & 0x7F) as u16;
-
-        let start_angle_q6 = angle_h << 4 | angle_l;
+        let start_angle_q6 = u16::from_le_bytes([bytes[2], bytes[3]]) & 0x7FFF;
         let w = start_angle_q6 as f32 / 64.0;
 
         let s = bytes[3] & 0x80 >> 7;
@@ -136,18 +133,22 @@ impl ExpressDenseResponse {
         })
     }
 
-    pub fn fix_angles(&mut self, w_next: u16) {
-        let w = self.start_angle_q6 as f32 / 64.0;
-        let w_next = w_next as f32 / 64.0;
-        let angle_diff = if w <= w_next {
-            w_next - w
-        } else {
-            360.0 + w_next - w
-        };
-        let angle = angle_diff / 40.0;
+    pub fn fix_angles(&mut self, next_start_angle_q6: u16) {
+        let current_angle = self.start_angle_q6 as f32 / 64.0;
+        let next_angle = next_start_angle_q6 as f32 / 64.0;
 
-        for (k, cabin) in self.cabins.iter_mut().enumerate() {
-            cabin.angle += angle * k as f32;
+        let mut angle_diff = next_angle - current_angle;
+        if angle_diff < 0.0 {
+            angle_diff += 360.0;
+        }
+
+        let angle_increment = angle_diff / 40.0;
+
+        for (i, cabin) in self.cabins.iter_mut().enumerate() {
+            cabin.angle = current_angle + angle_increment * i as f32;
+            if cabin.angle >= 360.0 {
+                cabin.angle -= 360.0;
+            }
         }
     }
 

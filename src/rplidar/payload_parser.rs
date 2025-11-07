@@ -1,7 +1,5 @@
 //! Payload parsing state machine
 
-use std::mem;
-
 #[derive(Debug, Clone, Default)]
 pub struct PayloadParser {
     payload: Vec<u8>,

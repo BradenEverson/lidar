@@ -133,6 +133,7 @@ impl RpLidar {
                         self.prev_resp = Some(sr);
                     }
                 } else {
+                    println!("{:?}", &self.buf[0..n]);
                     self.curr_resp = self.rd_parser.feed(*byte);
                     if let Some(ref resp) = self.curr_resp {
                         println!("Payload Size: {}", resp.payload_len);
