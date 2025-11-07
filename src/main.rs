@@ -3,7 +3,10 @@ use std::{env, sync::Arc};
 use hyper::server::conn::http1;
 use hyper_util::rt::TokioIo;
 use lidar::{
-    rplidar::{RpLidar, response::ScanResponse},
+    rplidar::{
+        RpLidar,
+        response::{ExpressDenseResponse, ScanResponse},
+    },
     service::LidarService,
 };
 use tokio::{
@@ -19,8 +22,8 @@ async fn main() {
     let mut rplidar = RpLidar::init(0, 1).expect("Failed to init RpLidar");
 
     let (tx, rx): (
-        UnboundedSender<ScanResponse>,
-        UnboundedReceiver<ScanResponse>,
+        UnboundedSender<ExpressDenseResponse>,
+        UnboundedReceiver<ExpressDenseResponse>,
     ) = tokio::sync::mpsc::unbounded_channel();
 
     let port = env::var("PORT").unwrap_or_else(|_| "7878".to_string());
@@ -51,11 +54,11 @@ async fn main() {
         }
     });
 
-    rplidar.stop().expect("Failed to stop");
-    // rplidar.set_speed(1.0).expect("Failed to set speed");
-    // rplidar.set_scan_sender(tx);
-    //
-    // rplidar.extended_scan_loop(0x1).expect("Scanning failed");
+    // rplidar.stop().expect("Failed to stop");
+    rplidar.set_speed(1.0).expect("Failed to set speed");
+    rplidar.set_scan_sender(tx);
+
+    rplidar.extended_scan_loop(0x1).expect("Scanning failed");
 }
 
 pub fn read_scan(s: ScanResponse) {

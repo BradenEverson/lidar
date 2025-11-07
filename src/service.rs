@@ -15,17 +15,17 @@ use hyper_tungstenite::{is_upgrade_request, upgrade};
 use tokio::sync::{Mutex, mpsc::UnboundedReceiver};
 use tokio_tungstenite::tungstenite::Message;
 
-use crate::rplidar::response::ScanResponse;
+use crate::rplidar::response::ExpressDenseResponse;
 
 /// Lidar websocket communication manager
 pub struct LidarService {
     /// The receiving end of a scan response sender
-    recv: Arc<Mutex<UnboundedReceiver<ScanResponse>>>,
+    recv: Arc<Mutex<UnboundedReceiver<ExpressDenseResponse>>>,
 }
 
 impl LidarService {
     /// Creates a new Lidar Service
-    pub fn new(rx: Arc<Mutex<UnboundedReceiver<ScanResponse>>>) -> Self {
+    pub fn new(rx: Arc<Mutex<UnboundedReceiver<ExpressDenseResponse>>>) -> Self {
         Self { recv: rx }
     }
 }
@@ -45,15 +45,28 @@ impl Service<Request<body::Incoming>> for LidarService {
                 let (mut ws_write, _) = websocket.await.expect("Await websocket").split();
 
                 while let Some(msg) = { rx.lock().await.recv().await } {
-                    if msg.dist > 0.0 {
+                    let cabin = msg.cabins[0];
+                    if cabin.dist > 0.0 {
                         let mut payload = vec![];
-                        payload.push(if msg.new { 1 } else { 0 });
-                        payload.extend_from_slice(&msg.angle.to_be_bytes());
-                        payload.extend_from_slice(&msg.dist.to_be_bytes());
+                        payload.push(msg.s);
+                        payload.extend_from_slice(&cabin.angle.to_be_bytes());
+                        payload.extend_from_slice(&cabin.dist.to_be_bytes());
 
                         let _ = ws_write.send(Message::binary(payload)).await.map_err(|_| {
                             println!("ERROR: Failed to send");
                         });
+                    }
+                    for cabin in &msg.cabins[1..] {
+                        if cabin.dist > 0.0 {
+                            let mut payload = vec![];
+                            payload.push(0);
+                            payload.extend_from_slice(&cabin.angle.to_be_bytes());
+                            payload.extend_from_slice(&cabin.dist.to_be_bytes());
+
+                            let _ = ws_write.send(Message::binary(payload)).await.map_err(|_| {
+                                println!("ERROR: Failed to send");
+                            });
+                        }
                     }
                 }
             });

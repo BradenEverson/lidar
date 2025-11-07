@@ -10,11 +10,11 @@ pub enum DataResponse {
 }
 
 impl DataResponse {
-    pub fn try_from_packet(sent_from: OpCode, bytes: &[u8]) -> Option<Self> {
+    pub fn try_from_packet(sent_from: OpCode, bytes: &[u8], prev_w: u16) -> Option<Self> {
         match sent_from {
             OpCode::Scan => ScanResponse::try_from_bytes(bytes).map(ScanResponse::wrap),
             OpCode::ExpressScan => {
-                ExpressDenseResponse::try_from_bytes(bytes).map(ExpressDenseResponse::wrap)
+                ExpressDenseResponse::try_from_bytes(bytes, prev_w).map(ExpressDenseResponse::wrap)
             }
             _ => todo!("Implement other data packet parsing modes"),
         }
@@ -25,6 +25,12 @@ impl DataResponse {
 pub struct ScanResponse {
     pub new: bool,
     pub quality: u8,
+    pub angle: f32,
+    pub dist: f32,
+}
+
+#[derive(Clone, Copy, PartialEq, Default, Debug)]
+pub struct Scan {
     pub angle: f32,
     pub dist: f32,
 }
@@ -78,11 +84,11 @@ pub struct ExpressDenseResponse {
     pub s: u8,
     pub checksum: u8,
     pub start_angle_q6: u16,
-    pub cabins: [RawCabin; 40],
+    pub cabins: [Scan; 40],
 }
 
 impl ExpressDenseResponse {
-    pub fn try_from_bytes(bytes: &[u8]) -> Option<Self> {
+    pub fn try_from_bytes(bytes: &[u8], prev_w: u16) -> Option<Self> {
         if bytes.len() != 84 {
             return None;
         }
@@ -101,18 +107,33 @@ impl ExpressDenseResponse {
         let angle_h = (bytes[3] & 0x7F) as u16;
 
         let start_angle_q6 = angle_h << 4 | angle_l;
+        let w = start_angle_q6 as f32 / 64.0;
 
         let s = bytes[3] & 0x80 >> 7;
 
         let checksum = (c2 << 4) | c1;
 
         #[allow(clippy::uninit_assumed_init)]
-        let mut cabins: [RawCabin; 40] = unsafe { MaybeUninit::uninit().assume_init() };
+        let mut cabins: [Scan; 40] = unsafe { MaybeUninit::uninit().assume_init() };
 
         let cabin_bytes = &bytes[4..];
 
+        let prev_w = prev_w as f32 / 64.0;
+
+        let angle_diff = if w <= prev_w {
+            prev_w - w
+        } else {
+            360.0 + prev_w - w
+        };
+
         for (i, cabin) in cabin_bytes.chunks(2).enumerate() {
-            cabins[i].data = [cabin[0], cabin[1]]
+            let dist = RawCabin {
+                data: [cabin[0], cabin[1]],
+            }
+            .to_dist();
+
+            cabins[i].dist = dist as f32 / 4.0;
+            cabins[i].angle = w + (angle_diff / 40.0) * i as f32;
         }
 
         Some(Self {

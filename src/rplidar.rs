@@ -50,7 +50,9 @@ pub struct RpLidar {
     buf: [u8; 1024],
 
     scan_handler: Option<fn(ScanResponse)>,
-    scan_sender: Option<UnboundedSender<ScanResponse>>,
+    scan_sender: Option<UnboundedSender<ExpressDenseResponse>>,
+
+    prev_w: u16,
 }
 
 impl RpLidar {
@@ -72,6 +74,7 @@ impl RpLidar {
             p_parser: PayloadParser::default(),
             curr_resp: None,
             buf: [0; 1024],
+            prev_w: 0,
         })
     }
 
@@ -79,7 +82,7 @@ impl RpLidar {
         self.scan_handler = Some(handler);
     }
 
-    pub fn set_scan_sender(&mut self, tx: UnboundedSender<ScanResponse>) {
+    pub fn set_scan_sender(&mut self, tx: UnboundedSender<ExpressDenseResponse>) {
         self.scan_sender = Some(tx)
     }
 
@@ -95,10 +98,7 @@ impl RpLidar {
 
     pub fn send_command(&mut self, cmd: Command) -> Result<(), LidarError> {
         let packet = cmd.to_packet();
-        let sent = self
-            .com
-            .write(packet)
-            .map_err(LidarError::UartError)?;
+        let sent = self.com.write(packet).map_err(LidarError::UartError)?;
 
         if sent != packet.len() {
             Err(LidarError::CommandSendFailure)
@@ -121,15 +121,14 @@ impl RpLidar {
             for byte in &self.buf[0..n] {
                 if self.curr_resp.is_some() {
                     if let Some(payload) = self.p_parser.feed(*byte)
-                        && let Some(sr) = ExpressDenseResponse::try_from_bytes(&payload) {
-                            println!("{sr:?}")
-                            // if let Some(sender) = &mut self.scan_sender {
-                            //     sender.send(sr).expect("Failed to send");
-                            // }
-                            // if let Some(handler) = self.scan_handler {
-                            //     handler(sr);
-                            // }
+                        && let Some(sr) =
+                            ExpressDenseResponse::try_from_bytes(&payload, self.prev_w)
+                    {
+                        self.prev_w = sr.start_angle_q6;
+                        if let Some(sender) = &mut self.scan_sender {
+                            sender.send(sr).expect("Failed to send");
                         }
+                    }
                 } else {
                     self.curr_resp = self.rd_parser.feed(*byte);
                     if let Some(ref resp) = self.curr_resp {
@@ -146,14 +145,15 @@ impl RpLidar {
             for byte in &self.buf[0..n] {
                 if self.curr_resp.is_some() {
                     if let Some(payload) = self.p_parser.feed(*byte)
-                        && let Some(sr) = ScanResponse::try_from_bytes(&payload) {
-                            if let Some(sender) = &mut self.scan_sender {
-                                sender.send(sr).expect("Failed to send");
-                            }
-                            if let Some(handler) = self.scan_handler {
-                                handler(sr);
-                            }
+                        && let Some(sr) = ScanResponse::try_from_bytes(&payload)
+                    {
+                        // if let Some(sender) = &mut self.scan_sender {
+                        //     sender.send(sr).expect("Failed to send");
+                        // }
+                        if let Some(handler) = self.scan_handler {
+                            handler(sr);
                         }
+                    }
                 } else {
                     self.curr_resp = self.rd_parser.feed(*byte);
                     if let Some(ref resp) = self.curr_resp {
