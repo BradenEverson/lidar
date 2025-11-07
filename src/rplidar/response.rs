@@ -126,14 +126,14 @@ impl ExpressDenseResponse {
             360.0 + prev_w - w
         };
 
-        for (i, cabin) in cabin_bytes.chunks(2).enumerate() {
+        for (k, cabin) in cabin_bytes.chunks(2).enumerate() {
             let dist = RawCabin {
                 data: [cabin[0], cabin[1]],
             }
             .to_dist();
 
-            cabins[i].dist = dist as f32 / 4.0;
-            cabins[i].angle = w + (angle_diff / 40.0) * i as f32;
+            cabins[k].dist = dist as f32 / 4.0;
+            cabins[k].angle = w + (angle_diff / 40.0) * k as f32;
         }
 
         Some(Self {

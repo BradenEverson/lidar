@@ -54,11 +54,11 @@ async fn main() {
         }
     });
 
-    // rplidar.stop().expect("Failed to stop");
-    rplidar.set_speed(1.0).expect("Failed to set speed");
-    rplidar.set_scan_sender(tx);
-
-    rplidar.extended_scan_loop(0x1).expect("Scanning failed");
+    rplidar.stop().expect("Failed to stop");
+    // rplidar.set_speed(1.0).expect("Failed to set speed");
+    // rplidar.set_scan_sender(tx);
+    //
+    // rplidar.extended_scan_loop(0x1).expect("Scanning failed");
 }
 
 pub fn read_scan(s: ScanResponse) {
