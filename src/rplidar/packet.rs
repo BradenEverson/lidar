@@ -38,6 +38,7 @@ impl Packet {
                 let mut checksum = 0;
 
                 checksum ^= START_FLAG;
+                checksum ^= self.op as u8;
                 checksum ^= self.len;
                 for i in 0..len {
                     checksum ^= self.payload[i];

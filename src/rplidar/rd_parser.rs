@@ -61,7 +61,7 @@ pub enum ParserState {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::{FlatResponse, ResponseDescriptorParser};
+    use crate::rplidar::rd_parser::{FlatResponse, ResponseDescriptorParser};
 
     #[test]
     fn simple_response_descriptor() {

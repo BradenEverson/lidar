@@ -13,3 +13,4 @@ hyper-util = "0.1.17"
 rppal = "0.22.1"
 tokio = { version = "1.48.0", features = ["full"] }
 tokio-tungstenite = "0.28.0"
+tungstenite = "0.28.0"
