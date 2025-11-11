@@ -46,7 +46,7 @@ async fn main() {
     rplidar.set_speed(1.0).expect("Failed to set speed");
     rplidar.set_scan_sender(tx);
 
-    rplidar.extended_scan_loop(0x2).expect("Scanning failed");
+    rplidar.scan_blocking().expect("Scanning failed");
 }
 
 pub fn read_scan(s: ScanResponse) {
