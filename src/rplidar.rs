@@ -52,7 +52,8 @@ pub struct RpLidar {
     curr_resp: Option<FlatResponse>,
     buf: [u8; 1024],
 
-    scan_sender: Option<UnboundedSender<ParsedUltraCapsule>>,
+    ultra_scan_sender: Option<UnboundedSender<ParsedUltraCapsule>>,
+    scan_sender: Option<UnboundedSender<ScanResponse>>,
 }
 
 impl RpLidar {
@@ -67,6 +68,7 @@ impl RpLidar {
         Ok(Self {
             motor_ctrl: pwm,
             com: uart,
+            ultra_scan_sender: None,
             scan_sender: None,
 
             ultra_parser: UltraCapsuleParser::default(),
@@ -77,8 +79,12 @@ impl RpLidar {
         })
     }
 
-    pub fn set_scan_sender(&mut self, tx: UnboundedSender<ParsedUltraCapsule>) {
+    pub fn set_scan_sender(&mut self, tx: UnboundedSender<ScanResponse>) {
         self.scan_sender = Some(tx)
+    }
+
+    pub fn set_ultra_scan_sender(&mut self, tx: UnboundedSender<ParsedUltraCapsule>) {
+        self.ultra_scan_sender = Some(tx)
     }
 
     pub fn set_speed(&mut self, speed: f64) -> Result<(), LidarError> {
@@ -117,7 +123,7 @@ impl RpLidar {
                 if self.curr_resp.is_some() {
                     if let Some(payload) = self.p_parser.feed(*byte)
                         && let Some(sr) = UltraCapsuleResponse::try_from_bytes(&payload)
-                        && let Some(sender) = &mut self.scan_sender
+                        && let Some(sender) = &mut self.ultra_scan_sender
                         && let Some(ultra) = self.ultra_parser.on_scan_node_capsule_data(sr)
                     {
                         sender.send(ultra).expect("Failed to send");
@@ -139,8 +145,9 @@ impl RpLidar {
                 if self.curr_resp.is_some() {
                     if let Some(payload) = self.p_parser.feed(*byte)
                         && let Some(sr) = ScanResponse::try_from_bytes(&payload)
+                        && let Some(sender) = &mut self.scan_sender
                     {
-                        _ = sr;
+                        sender.send(sr).expect("Failed to send")
                     }
                 } else {
                     self.curr_resp = self.rd_parser.feed(*byte);
