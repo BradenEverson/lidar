@@ -13,7 +13,7 @@ use crate::rplidar::{
     payload_parser::PayloadParser,
     rd_parser::{FlatResponse, ResponseDescriptorParser},
     response::{ScanResponse, UltraCapsuleResponse},
-    ultra::ParsedUltraCapsule,
+    ultra::{ParsedUltraCapsule, UltraCapsuleParser},
 };
 
 pub mod command;
@@ -48,10 +48,10 @@ pub struct RpLidar {
 
     rd_parser: ResponseDescriptorParser,
     p_parser: PayloadParser,
+    ultra_parser: UltraCapsuleParser,
     curr_resp: Option<FlatResponse>,
     buf: [u8; 1024],
 
-    scan_handler: Option<fn(ScanResponse)>,
     scan_sender: Option<UnboundedSender<ParsedUltraCapsule>>,
 }
 
@@ -67,18 +67,14 @@ impl RpLidar {
         Ok(Self {
             motor_ctrl: pwm,
             com: uart,
-            scan_handler: None,
             scan_sender: None,
 
+            ultra_parser: UltraCapsuleParser::default(),
             rd_parser: ResponseDescriptorParser::default(),
             p_parser: PayloadParser::default(),
             curr_resp: None,
             buf: [0; 1024],
         })
-    }
-
-    pub fn set_scan_handler(&mut self, handler: fn(ScanResponse)) {
-        self.scan_handler = Some(handler);
     }
 
     pub fn set_scan_sender(&mut self, tx: UnboundedSender<ParsedUltraCapsule>) {
@@ -122,10 +118,9 @@ impl RpLidar {
                     if let Some(payload) = self.p_parser.feed(*byte)
                         && let Some(sr) = UltraCapsuleResponse::try_from_bytes(&payload)
                         && let Some(sender) = &mut self.scan_sender
+                        && let Some(ultra) = self.ultra_parser.on_scan_node_capsule_data(sr)
                     {
-                        //TODO: we have a raw UltraCapsule and need to parse it into a
-                        //ParsedUltraCapsule
-                        //sender.send(sr).expect("Failed to send");
+                        sender.send(ultra).expect("Failed to send");
                     }
                 } else {
                     self.curr_resp = self.rd_parser.feed(*byte);
@@ -145,12 +140,7 @@ impl RpLidar {
                     if let Some(payload) = self.p_parser.feed(*byte)
                         && let Some(sr) = ScanResponse::try_from_bytes(&payload)
                     {
-                        // if let Some(sender) = &mut self.scan_sender {
-                        //     sender.send(sr).expect("Failed to send");
-                        // }
-                        if let Some(handler) = self.scan_handler {
-                            handler(sr);
-                        }
+                        _ = sr;
                     }
                 } else {
                     self.curr_resp = self.rd_parser.feed(*byte);

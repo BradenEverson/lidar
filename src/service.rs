@@ -45,29 +45,18 @@ impl Service<Request<body::Incoming>> for LidarService {
                 let (mut ws_write, _) = websocket.await.expect("Await websocket").split();
 
                 while let Some(msg) = { rx.lock().await.recv().await } {
-                    // let cabin = msg.cabins[0];
-                    // if cabin.dist > 0.0 {
-                    //     let mut payload = vec![];
-                    //     payload.push(msg.s);
-                    //     payload.extend_from_slice(&cabin.angle.to_be_bytes());
-                    //     payload.extend_from_slice(&cabin.dist.to_be_bytes());
-                    //
-                    //     let _ = ws_write.send(Message::binary(payload)).await.map_err(|_| {
-                    //         println!("ERROR: Failed to send");
-                    //     });
-                    // }
-                    // for cabin in &msg.cabins[1..] {
-                    //     if cabin.dist > 0.0 {
-                    //         let mut payload = vec![];
-                    //         payload.push(0);
-                    //         payload.extend_from_slice(&cabin.angle.to_be_bytes());
-                    //         payload.extend_from_slice(&cabin.dist.to_be_bytes());
-                    //
-                    //         let _ = ws_write.send(Message::binary(payload)).await.map_err(|_| {
-                    //             println!("ERROR: Failed to send");
-                    //         });
-                    //     }
-                    // }
+                    for cabin in &msg.scans {
+                        if cabin.distance_mm() > 0.0 {
+                            let mut payload = vec![];
+                            payload.push(if cabin.sync { 1 } else { 0 });
+                            payload.extend_from_slice(&cabin.angle_degrees().to_be_bytes());
+                            payload.extend_from_slice(&cabin.distance_mm().to_be_bytes());
+
+                            let _ = ws_write.send(Message::binary(payload)).await.map_err(|_| {
+                                println!("ERROR: Failed to send");
+                            });
+                        }
+                    }
                 }
             });
 

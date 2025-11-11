@@ -1,7 +1,5 @@
 //! Parser State Machine
 
-use std::mem;
-
 #[derive(Clone, Debug, Default)]
 pub struct ResponseDescriptorParser {
     state: ParserState,
