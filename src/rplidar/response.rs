@@ -1,5 +1,7 @@
 //! Data Response Format
 
+use std::mem::MaybeUninit;
+
 use crate::rplidar::packet::OpCode;
 
 pub enum DataResponse {
@@ -86,6 +88,43 @@ impl UltraCapsuleResponse {
             return None;
         }
 
-        None
+        let f1 = bytes[0] & 0xF0;
+        let f2 = (bytes[1] & 0xF0) >> 4;
+
+        if f1 | f2 != 0xA5 {
+            return None;
+        }
+
+        // todo: Checksum
+        // let c1 = bytes[0] & 0x0F;
+        // let c2 = bytes[1] & 0x0F;
+
+        let angle_l = bytes[2] as u16;
+        let angle_h = (bytes[3] & 0x7F) as u16;
+
+        let s = bytes[3] & 0x80 >> 7;
+
+        let start_angle_q6 = angle_h << 4 | angle_l;
+
+        let (cabins, extra) = bytes[4..].as_chunks::<128>();
+
+        if extra.len() != 0 || cabins.len() != 1 {
+            return None;
+        }
+
+        let cabin_bytes: [u8; 128] = cabins[0];
+
+        #[allow(clippy::uninit_assumed_init)]
+        let mut ultra_cabins: [u32; 32] = unsafe { MaybeUninit::uninit().assume_init() };
+
+        for (idx, cabin) in cabin_bytes.chunks(4).enumerate() {
+            ultra_cabins[idx] = u32::from_le_bytes([cabin[0], cabin[1], cabin[2], cabin[3]]);
+        }
+
+        Some(Self {
+            s,
+            start_angle_q6,
+            ultra_cabins,
+        })
     }
 }
