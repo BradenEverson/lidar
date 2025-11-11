@@ -15,17 +15,17 @@ use hyper_tungstenite::{is_upgrade_request, upgrade};
 use tokio::sync::{Mutex, mpsc::UnboundedReceiver};
 use tokio_tungstenite::tungstenite::Message;
 
-use crate::rplidar::response::ExpressResponse;
+use crate::rplidar::ultra::ParsedUltraCapsule;
 
 /// Lidar websocket communication manager
 pub struct LidarService {
     /// The receiving end of a scan response sender
-    recv: Arc<Mutex<UnboundedReceiver<ExpressResponse>>>,
+    recv: Arc<Mutex<UnboundedReceiver<ParsedUltraCapsule>>>,
 }
 
 impl LidarService {
     /// Creates a new Lidar Service
-    pub fn new(rx: Arc<Mutex<UnboundedReceiver<ExpressResponse>>>) -> Self {
+    pub fn new(rx: Arc<Mutex<UnboundedReceiver<ParsedUltraCapsule>>>) -> Self {
         Self { recv: rx }
     }
 }
@@ -45,29 +45,29 @@ impl Service<Request<body::Incoming>> for LidarService {
                 let (mut ws_write, _) = websocket.await.expect("Await websocket").split();
 
                 while let Some(msg) = { rx.lock().await.recv().await } {
-                    let cabin = msg.cabins[0];
-                    if cabin.dist > 0.0 {
-                        let mut payload = vec![];
-                        payload.push(msg.s);
-                        payload.extend_from_slice(&cabin.angle.to_be_bytes());
-                        payload.extend_from_slice(&cabin.dist.to_be_bytes());
-
-                        let _ = ws_write.send(Message::binary(payload)).await.map_err(|_| {
-                            println!("ERROR: Failed to send");
-                        });
-                    }
-                    for cabin in &msg.cabins[1..] {
-                        if cabin.dist > 0.0 {
-                            let mut payload = vec![];
-                            payload.push(0);
-                            payload.extend_from_slice(&cabin.angle.to_be_bytes());
-                            payload.extend_from_slice(&cabin.dist.to_be_bytes());
-
-                            let _ = ws_write.send(Message::binary(payload)).await.map_err(|_| {
-                                println!("ERROR: Failed to send");
-                            });
-                        }
-                    }
+                    // let cabin = msg.cabins[0];
+                    // if cabin.dist > 0.0 {
+                    //     let mut payload = vec![];
+                    //     payload.push(msg.s);
+                    //     payload.extend_from_slice(&cabin.angle.to_be_bytes());
+                    //     payload.extend_from_slice(&cabin.dist.to_be_bytes());
+                    //
+                    //     let _ = ws_write.send(Message::binary(payload)).await.map_err(|_| {
+                    //         println!("ERROR: Failed to send");
+                    //     });
+                    // }
+                    // for cabin in &msg.cabins[1..] {
+                    //     if cabin.dist > 0.0 {
+                    //         let mut payload = vec![];
+                    //         payload.push(0);
+                    //         payload.extend_from_slice(&cabin.angle.to_be_bytes());
+                    //         payload.extend_from_slice(&cabin.dist.to_be_bytes());
+                    //
+                    //         let _ = ws_write.send(Message::binary(payload)).await.map_err(|_| {
+                    //             println!("ERROR: Failed to send");
+                    //         });
+                    //     }
+                    // }
                 }
             });
 

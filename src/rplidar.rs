@@ -12,7 +12,8 @@ use crate::rplidar::{
     command::{Command, WorkingMode},
     payload_parser::PayloadParser,
     rd_parser::{FlatResponse, ResponseDescriptorParser},
-    response::{ExpressResponse, ScanResponse},
+    response::{ScanResponse, UltraCapsuleResponse},
+    ultra::ParsedUltraCapsule,
 };
 
 pub mod command;
@@ -20,6 +21,7 @@ pub mod packet;
 pub mod payload_parser;
 pub mod rd_parser;
 pub mod response;
+pub mod ultra;
 
 #[derive(Debug)]
 pub enum LidarError {
@@ -50,7 +52,7 @@ pub struct RpLidar {
     buf: [u8; 1024],
 
     scan_handler: Option<fn(ScanResponse)>,
-    scan_sender: Option<UnboundedSender<ExpressResponse>>,
+    scan_sender: Option<UnboundedSender<ParsedUltraCapsule>>,
 }
 
 impl RpLidar {
@@ -79,7 +81,7 @@ impl RpLidar {
         self.scan_handler = Some(handler);
     }
 
-    pub fn set_scan_sender(&mut self, tx: UnboundedSender<ExpressResponse>) {
+    pub fn set_scan_sender(&mut self, tx: UnboundedSender<ParsedUltraCapsule>) {
         self.scan_sender = Some(tx)
     }
 
@@ -118,10 +120,12 @@ impl RpLidar {
             for byte in &self.buf[0..n] {
                 if self.curr_resp.is_some() {
                     if let Some(payload) = self.p_parser.feed(*byte)
-                        && let Some(sr) = ExpressResponse::try_from_bytes(&payload)
+                        && let Some(sr) = UltraCapsuleResponse::try_from_bytes(&payload)
                         && let Some(sender) = &mut self.scan_sender
                     {
-                        sender.send(sr).expect("Failed to send");
+                        //TODO: we have a raw UltraCapsule and need to parse it into a
+                        //ParsedUltraCapsule
+                        //sender.send(sr).expect("Failed to send");
                     }
                 } else {
                     self.curr_resp = self.rd_parser.feed(*byte);
