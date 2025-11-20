@@ -6,11 +6,13 @@ use lidar::{
     rplidar::{RpLidar, response::ScanResponse},
     service::LidarService,
 };
+use rppal::gpio::Gpio;
 use tokio::{net::TcpListener, sync::Mutex};
 
 #[tokio::main]
 async fn main() {
-    let mut rplidar = RpLidar::init(0, 1).expect("Failed to init RpLidar");
+    let gpio = Gpio::new().expect("Failed to init gpio");
+    let mut rplidar = RpLidar::init(&gpio, 24).expect("Failed to init RpLidar");
 
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
@@ -43,7 +45,7 @@ async fn main() {
     });
 
     // rplidar.stop().expect("Failed to stop");
-    rplidar.set_speed(1.0).expect("Failed to set speed");
+    rplidar.set_speed();
     rplidar.set_scan_sender(tx);
 
     rplidar.scan_blocking().expect("Scanning failed");

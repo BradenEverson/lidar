@@ -3,7 +3,7 @@
 use std::{error::Error, fmt::Display};
 
 use rppal::{
-    pwm::Pwm,
+    gpio::{Gpio, OutputPin},
     uart::{Parity, Uart},
 };
 use tokio::sync::mpsc::UnboundedSender;
@@ -25,7 +25,7 @@ pub mod ultra;
 
 #[derive(Debug)]
 pub enum LidarError {
-    PwmError(rppal::pwm::Error),
+    GpioError(rppal::gpio::Error),
     UartError(rppal::uart::Error),
     CommandSendFailure,
 }
@@ -33,7 +33,7 @@ pub enum LidarError {
 impl Display for LidarError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::PwmError(perr) => write!(f, "{perr}"),
+            Self::GpioError(gerr) => write!(f, "{gerr}"),
             Self::UartError(uerr) => write!(f, "{uerr}"),
             Self::CommandSendFailure => write!(f, "Failed to send command fully"),
         }
@@ -43,7 +43,7 @@ impl Display for LidarError {
 impl Error for LidarError {}
 
 pub struct RpLidar {
-    motor_ctrl: Pwm,
+    motor_ctrl: OutputPin,
     com: Uart,
 
     rd_parser: ResponseDescriptorParser,
@@ -57,16 +57,13 @@ pub struct RpLidar {
 }
 
 impl RpLidar {
-    pub fn init(chip: u8, idx: u8) -> Result<Self, LidarError> {
-        let pwm = Pwm::with_pwmchip(chip, idx).map_err(LidarError::PwmError)?;
-        pwm.set_frequency(1000.0, 0.0)
-            .map_err(LidarError::PwmError)?;
-        pwm.enable().map_err(LidarError::PwmError)?;
+    pub fn init(gpio: &Gpio, idx: u8) -> Result<Self, LidarError> {
+        let motor_ctrl = gpio.get(idx).map_err(LidarError::GpioError)?.into_output();
 
         let uart = Uart::new(115_200, Parity::None, 8, 1).map_err(LidarError::UartError)?;
 
         Ok(Self {
-            motor_ctrl: pwm,
+            motor_ctrl,
             com: uart,
             ultra_scan_sender: None,
             scan_sender: None,
@@ -87,13 +84,12 @@ impl RpLidar {
         self.ultra_scan_sender = Some(tx)
     }
 
-    pub fn set_speed(&mut self, speed: f64) -> Result<(), LidarError> {
-        self.motor_ctrl
-            .set_duty_cycle(speed)
-            .map_err(LidarError::PwmError)
+    pub fn set_speed(&mut self) {
+        self.motor_ctrl.set_high();
     }
 
     pub fn stop(&mut self) -> Result<(), LidarError> {
+        self.motor_ctrl.set_low();
         self.send_command(Command::Stop)
     }
 
